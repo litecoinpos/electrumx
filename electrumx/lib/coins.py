@@ -65,6 +65,7 @@ class CoinError(Exception):
 
 class Coin:
     '''Base class of coin hierarchy.'''
+    logger = util.class_logger(__name__, __name__)
 
     REORG_LIMIT = 200
     # Not sure if these are coin-specific
@@ -573,8 +574,8 @@ class BitcoinCash(BitcoinMixin, Coin):
         return False
 
 class LitecoinPoS(Coin):
-    DESERIALIZER = lib_tx.DeserializerSegWit
-
+    DESERIALIZER = lib_tx.DeserializerLtcp
+    STATIC_BLOCK_HEADERS = False
     NAME = "LitecoinPoS"
     SHORTNAME = "LTCP"
     NET = "mainnet"
@@ -587,18 +588,44 @@ class LitecoinPoS(Coin):
     TX_COUNT_HEIGHT = 2000
     TX_PER_BLOCK = 2
     RPC_PORT = 58931
-    REORG_LIMIT = 5000
+    REORG_LIMIT = 1000
 
     XPUB_VERBYTES = bytes.fromhex("7788B21E")
     XPRV_VERBYTES = bytes.fromhex("7788ADE4")
-   
+    BASIC_HEADER_SIZE = 116
+    LTCP_POS_HEIGHT = 1001
+    LTCP_POS_HEADER_SIZE = 187
+    LTCP_POS_START_OFFSET = LTCP_POS_HEIGHT * BASIC_HEADER_SIZE
+    PEERS = []
 
-    BASIC_HEADER_SIZE = 117
-    HEADER_VALUES = ('version', 'prev_block_hash', 'merkle_root', 'timestamp',
-                     'bits', 'nonce','prevout_stake','vch_block_sig')
-    HEADER_UNPACK = struct.Struct('< I 32s 32s I I I 32s 32s').unpack_from
+    @classmethod
+    def block_header(cls, block, height):
+        '''Returns the block header given a block and its height.'''
+        deserializer = cls.DESERIALIZER(block, start=cls.BASIC_HEADER_SIZE)
+        sig_length = deserializer.read_varint() 
+        return block[:deserializer.cursor + sig_length]
+        
+    @classmethod
+    def electrum_header(cls, header, height):
+        version, = struct.unpack('<I', header[:4])
+        timestamp, bits, nonce = struct.unpack('<III', header[68:80])
 
-    
+        deserializer = cls.DESERIALIZER(header, start=cls.BASIC_HEADER_SIZE)
+        if height >= cls.LTCP_POS_HEIGHT:
+            sig_length = deserializer.read_varint()
+        else:
+            sig_length = 0
+        header = {
+            'version': version,
+            'prev_block_hash': hash_to_hex_str(header[4:36]),
+            'merkle_root': hash_to_hex_str(header[36:68]),
+            'timestamp': timestamp,
+            'bits': bits,
+            'nonce': nonce,
+            'hash_prevout_stake': hash_to_hex_str(header[80:112]),
+            'sig': hash_to_hex_str(header[:-sig_length-1:-1]),
+        }
+        return header
 
 
   
