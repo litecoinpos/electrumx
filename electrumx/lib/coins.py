@@ -596,6 +596,7 @@ class LitecoinPoS(Coin):
     LTCP_POS_HEIGHT = 1001
     LTCP_POS_HEADER_SIZE = 187
     LTCP_POS_START_OFFSET = LTCP_POS_HEIGHT * BASIC_HEADER_SIZE
+    
     PEERS = []
 
     @classmethod
