@@ -1165,7 +1165,8 @@ class ElectrumX(SessionBase):
         result = {'header': raw_header_hex}
         result.update(await self._merkle_proof(cp_height, height))
         return result
-
+    async def transaction_get_receipt(self, txid):
+        return await self.daemon_request('gettransactionreceipt', txid)
     async def block_headers(self, start_height, count, cp_height=0):
         '''Return count concatenated block headers as hex for the main chain;
         starting at start_height.
